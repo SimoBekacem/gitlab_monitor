@@ -24,27 +24,28 @@ def gitlab_webhook():
             return jsonify({"message": "Invalid secret token"}), 401
         print("GitLab Secret Token verified.")
 
-    # Log the event type
-    event_name = request.headers.get('X-Gitlab-Event')
-    if event_name:
-        print(f"GitLab Event Type: {event_name}")
+    print(f"Received GitLab Webhook Request. Event Name: {request.json.get('event_name')}")
+    # Get commits just in push events
+    if request.json.get('event_name') == 'push':
+        # Call the Spring Boot endpoint
+        print(f"Attempting to call Spring Boot endpoint: {SPRING_BOOT_ENDPOINT}")
+        try:
+            response = requests.get(SPRING_BOOT_ENDPOINT)
+            response.raise_for_status() # Raise an exception for HTTP errors (4xx or 5xx)
+            print(f"Successfully called Spring Boot endpoint. Status: {response.status_code}")
+            print(f"Spring Boot Response: {response.text[:200]}...") # Print first 200 chars
+            return response.text, response.status_code
+        except requests.exceptions.RequestException as e:
+            print(f"ERROR: Failed to call Spring Boot endpoint: {e}")
+            return jsonify({"message": f"Failed to call Spring Boot endpoint: {e}"}), 500
+        except Exception as e:
+            print(f"An unexpected error occurred: {e}")
+            return jsonify({"message": f"An unexpected error occurred: {e}"}), 500
     else:
-        print("GitLab Event Type: Not specified in headers")
+        print(f"Received non-push event. Event Name: {request.json.get('event_name')}")
+        return jsonify({"message": f"Received non-push event. Event Name: {request.json.get('event_name')}"}), 200
 
-    # Call the Spring Boot endpoint
-    print(f"Attempting to call Spring Boot endpoint: {SPRING_BOOT_ENDPOINT}")
-    try:
-        response = requests.get(SPRING_BOOT_ENDPOINT)
-        response.raise_for_status() # Raise an exception for HTTP errors (4xx or 5xx)
-        print(f"Successfully called Spring Boot endpoint. Status: {response.status_code}")
-        print(f"Spring Boot Response: {response.text[:200]}...") # Print first 200 chars
-        return response.text, response.status_code
-    except requests.exceptions.RequestException as e:
-        print(f"ERROR: Failed to call Spring Boot endpoint: {e}")
-        return jsonify({"message": f"Failed to call Spring Boot endpoint: {e}"}), 500
-    except Exception as e:
-        print(f"An unexpected error occurred: {e}")
-        return jsonify({"message": f"An unexpected error occurred: {e}"}), 500
+    
 
 @app.route('/', methods=['GET'])
 def index():
