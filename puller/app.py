@@ -7,8 +7,8 @@ app = Flask(__name__)
 
 # --- Configuration ---
 # The URL of Spring Boot application's endpoint
-# SPRING_BOOT_ENDPOINT = "http://localhost:8080/commits"
-SPRING_BOOT_ENDPOINT = "http://localhost:8080/usersCommits"
+SPRING_BOOT_ENDPOINT = "http://localhost:8080/commits"
+# SPRING_BOOT_ENDPOINT = "http://localhost:8080/usersCommits"
 
 WEBHOOK_SECRET = os.environ.get("GITLAB_WEBHOOK_SECRET", None)
 

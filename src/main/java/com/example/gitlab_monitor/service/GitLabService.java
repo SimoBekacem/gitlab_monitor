@@ -1,20 +1,19 @@
 package com.example.gitlab_monitor.service;
 
-import com.example.gitlab_monitor.model.CommitInfo; // Import the CommitInfo DTO
-import com.example.gitlab_monitor.model.UserCommitInfo;
-
 import org.gitlab4j.api.GitLabApi;
 import org.gitlab4j.api.GitLabApiException;
 import org.gitlab4j.api.models.Project;
+import org.gitlab4j.api.models.Branch;
 import org.gitlab4j.api.models.Commit;
 import org.springframework.stereotype.Service;
 
+import com.example.gitlab_monitor.model.CommitModel;
+import com.example.gitlab_monitor.repository.CommitsRepository;
+
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.Date;
-import java.util.HashMap;
 import java.time.Instant;
 import java.time.format.DateTimeParseException;
 
@@ -26,85 +25,118 @@ public class GitLabService {
 
     private static final String GITLAB_URL = "http://localhost:8000";
     private static final String GITLAB_PRIVATE_TOKEN = "glpat-3Mg3WYdoV9qAx7s2sodC";
+    private final CommitsRepository commitRepository;
 
     private final GitLabApi gitLabApi;
 
-    public GitLabService() {
+    public GitLabService(CommitsRepository commitRepository) {
         this.gitLabApi = new GitLabApi(GITLAB_URL, GITLAB_PRIVATE_TOKEN);
         System.out.println("GitLabService initialized with API URL: " + GITLAB_URL);
+        this.commitRepository = commitRepository;
     }
 
     
     public List<Project> getAllProjects() throws GitLabApiException {
-        System.out.println("GitLabService: Fetching all projects from GitLab.");
-        return gitLabApi.getProjectApi().getProjects();
+        System.out.println("--- Starting getAllProjects processing ---");
+        List<Project> projects = gitLabApi.getProjectApi().getProjects();
+        System.out.println("GitLabService: Found " + projects.size() + " projects.");
+        System.out.println("--- Finished getAllProjects processing ---");
+        return projects;
     }
 
     
-    public List<CommitInfo> getAllCommitsForAllProjects() throws GitLabApiException {
-        List<CommitInfo> allCommitsInfo = new ArrayList<>();
+    public List<CommitModel> getAllCommitsForAllProjects() throws GitLabApiException {
+        System.out.println("--- Starting getAllCommitsForAllProjects processing ---");
+        List<CommitModel> allCommitsInfo = new ArrayList<>();
         List<Project> projects = getAllProjects();
         System.out.println("GitLabService: Found " + projects.size() + " projects.");
         for (Project project : projects) {
             fetchCommitsForProject(project, allCommitsInfo);
         }
         System.out.println("GitLabService: Total commits collected: " + allCommitsInfo.size());
+        System.out.println("--- Finished getAllCommitsForAllProjects processing ---");
         return allCommitsInfo;
     }
-
     
-    private void fetchCommitsForProject(Project project, List<CommitInfo> allCommitsInfo) throws GitLabApiException {
+    public void storeAllCommits(List<CommitModel> allCommitsInfo) {
+        System.out.println("--- Starting storeAllCommits processing ---");
+        System.out.println("Number of commits received from GitLab API for processing: " + allCommitsInfo.size());
+    
+        if (!allCommitsInfo.isEmpty()) {
+            System.out.println("Sample fetched commit IDs (from GitLab API): " +
+                    allCommitsInfo.stream().limit(5).map(CommitModel::getCommitId).collect(Collectors.joining(", ")));
+        } else {
+            System.out.println("No commits fetched from GitLab API to process.");
+        }
+    
+        List<CommitModel> newCommits = allCommitsInfo.stream()
+                .filter(commit -> {
+                    String commitId = commit.getCommitId();
+                    boolean exists = commitRepository.existsById(commitId);
+                    return !exists;
+                })
+                .collect(Collectors.toList());
+    
+        System.out.println("Number of *new* commits identified for storage: " + newCommits.size());
+    
+
+        if (!newCommits.isEmpty()) {
+            commitRepository.saveAll(newCommits);
+            System.out.println("Successfully stored " + newCommits.size() + " new commits to the database.");
+        } else {
+            System.out.println("No new commits to store (all fetched commits already exist in DB or fetched list was empty).");
+        }
+    
+        System.out.println("--- Finished storeAllCommits processing ---");
+    }
+    
+    private void fetchCommitsForProject(Project project, List<CommitModel> allCommitsInfo) throws GitLabApiException {
+        System.out.println("--- Starting fetchCommitsForProject processing ---");
         try {
             Date since = Date.from(Instant.parse("2017-01-01T00:00:00Z"));
             Date until = new Date();
-            fetchCommitsForProject(project, since, until, allCommitsInfo);
+            fetchCommitsForProjectBranches(project, since, until, allCommitsInfo);
         } catch (DateTimeParseException e) {
             throw new RuntimeException("Failed to parse start date for commits", e);
         }
+        System.out.println("--- Finished fetchCommitsForProject processing ---");
     }
 
-    private void fetchCommitsForProject(Project project, Date since, Date until, List<CommitInfo> allCommitsInfo) throws GitLabApiException {
-        String branchName = project.getDefaultBranch();
-        if (branchName == null || branchName.isEmpty()) {
-            System.out.println("GitLabService: Project " + project.getName() + " (ID: " + project.getId() + ") has no default branch. Skipping commit fetch.");
+    private void fetchCommitsForProjectBranches(Project project, Date since, Date until, List<CommitModel> allCommitsInfo) throws GitLabApiException {
+        System.out.println("--- Starting fetchCommitsForProjectBranches processing ---");
+        List<Branch> branches = gitLabApi.getRepositoryApi().getBranches(project.getId());
+
+        if (branches == null || branches.isEmpty()) {
             return;
         }
 
-        System.out.println("GitLabService: Fetching commits for project: " + project.getName() + " (ID: " + project.getId() + ", Branch: " + branchName + ")");
-        List<Commit> commits = gitLabApi.getCommitsApi().getCommits(project.getId(), branchName, since, until);
+        for (Branch branch : branches) {
+            String branchName = branch.getName();
+            List<Commit> commits = gitLabApi.getCommitsApi().getCommits(project.getId(), branchName, since, until);
 
-        if (commits != null && !commits.isEmpty()) {
-            for (Commit commit : commits) {
-                addCommitInfo(commit, project, allCommitsInfo);
+            if (commits != null && !commits.isEmpty()) {
+                for (Commit commit : commits) {
+                    addCommitInfo(commit, project, allCommitsInfo, branchName);
+                }
+            } else {
+                System.out.println("No commits found for project: " + project.getName() + " in branch " + branchName + " within the specified date range.");
             }
-            System.out.println("GitLabService: Fetched " + commits.size() + " commits for project: " + project.getName());
-        } else {
-            System.out.println("GitLabService: No commits found for project: " + project.getName() + " in branch " + branchName + " within the specified date range.");
         }
+        System.out.println("--- Finished fetchCommitsForProjectBranches processing ---");
     }
 
     
-    private void addCommitInfo(Commit commit, Project project, List<CommitInfo> allCommitsInfo) {
+    private void addCommitInfo(Commit commit, Project project, List<CommitModel> allCommitsInfo, String branchName) {
         String committerName = commit.getCommitterName() != null ? commit.getCommitterName() : commit.getAuthorName();
 
-        allCommitsInfo.add(new CommitInfo(
+        allCommitsInfo.add(new CommitModel(
             project.getName(),
             committerName,
             commit.getCommittedDate(),
             commit.getId(),
-            commit.getMessage()
+            commit.getMessage(),
+            branchName
         ));
-    }
-    
-    public List<UserCommitInfo> getUsersCommitsInfo(List<CommitInfo> allCommitsInfo) {
-        Map<String, Integer> commitCountsByUser = new HashMap<>();
-        for (CommitInfo commitInfo : allCommitsInfo) {
-            String userName = commitInfo.getCommitterName();
-            commitCountsByUser.put(userName, commitCountsByUser.getOrDefault(userName, 0) + 1);
-        }
-        return commitCountsByUser.entrySet().stream()
-            .map(entry -> new UserCommitInfo(entry.getKey(), entry.getValue()))
-            .collect(Collectors.toList());
     }
     
 }
