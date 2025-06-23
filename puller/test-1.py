@@ -14,7 +14,7 @@ import tempfile # For creating temporary directories
 # The 'oauth2' username is standard for PATs over HTTP.
 # Ensure 'performance-test-project-1' is the correct project path on your GitLab instance.
 # If your GitLab URL is different (e.g., :80), adjust localhost:8000.
-GITLAB_HTTP_REPO_URL = "http://oauth2:glpat-3Mg3WYdoV9qAx7s2sodC@localhost:8000/root/performance-test-project-1.git"
+GITLAB_HTTP_REPO_URL = "http://oauth2:glpat-3Mg3WYdoV9qAx7s2sodC@localhost:8000/root/performance-test-project.git"
 
 NUMBER_OF_COMMITS = 100
 MAX_WORKERS = 10 # Number of concurrent threads (each will have its own clone)
