@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>GitLab Commits Monitor</title>
+    <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1.5.0/dist/sockjs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 1000px; margin: 0 auto; padding: 20px; }
+        .commit { 
+            border: 1px solid #e1e4e8; 
+            border-radius: 6px; 
+            padding: 16px; 
+            margin-bottom: 16px;
+            background-color: #f6f8fa;
+        }
+        .commit-header { 
+            display: flex; 
+            justify-content: space-between; 
+            margin-bottom: 8px;
+            font-weight: bold;
+        }
+        .commit-message { 
+            margin: 8px 0; 
+            font-family: monospace;
+            white-space: pre-wrap;
+        }
+        .commit-meta { 
+            font-size: 12px; 
+            color: #586069;
+        }
+        .project-name { 
+            color: #0366d6; 
+            font-weight: bold;
+        }
+        #status {
+            padding: 10px;
+            margin-bottom: 20px;
+            border-radius: 4px;
+            text-align: center;
+        }
+        .connected { background-color: #e6ffed; color: #22863a; }
+        .disconnected { background-color: #ffebe9; color: #cb2431; }
+    </style>
+</head>
+<body>
+    <h1>GitLab Commits Monitor</h1>
+    <div id="status" class="disconnected">Disconnected from server</div>
+    <div id="commits">
+        <!-- Commits will appear here -->
+    </div>
+
+    <script>
+        let stompClient = null;
+        const statusElement = document.getElementById('status');
+        const commitsElement = document.getElementById('commits');
+        
+        function connect() {
+            const socket = new SockJS('/ws');
+            stompClient = Stomp.over(socket);
+            
+            stompClient.connect({}, function(frame) {
+                statusElement.textContent = 'Connected to server';
+                statusElement.className = 'connected';
+                
+                // Subscribe to commits topic
+                stompClient.subscribe('/topic/commits', function(message) {
+                    const commit = JSON.parse(message.body);
+                    addCommit(commit);
+                });
+                
+            }, function(error) {
+                statusElement.textContent = 'Connection error: ' + error;
+                statusElement.className = 'disconnected';
+            });
+        }
+        
+        function addCommit(commit) {
+            const commitElement = document.createElement('div');
+            commitElement.className = 'commit';
+            
+            const date = new Date(commit.committedDate);
+            const formattedDate = date.toLocaleString();
+            
+            commitElement.innerHTML = `
+                <div class="commit-header">
+                    <span class="project-name">${commit.projectName}</span>
+                    <span>${formattedDate}</span>
+                </div>
+                <div class="commit-message">${commit.message}</div>
+                <div class="commit-meta">
+                    Author: ${commit.authorName} | 
+                    <a href="${commit.webUrl}" target="_blank">View on GitLab</a>
+                </div>
+            `;
+            
+            // Add new commit to the top of the list
+            commitsElement.insertBefore(commitElement, commitsElement.firstChild);
+        }
+        
+        // Connect when the page loads
+        connect();
+    </script>
+</body>
+</html>
