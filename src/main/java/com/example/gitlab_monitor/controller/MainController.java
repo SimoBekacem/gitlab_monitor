@@ -26,7 +26,6 @@ public class MainController {
     }
 
     @GetMapping("/home")
-    // @Scheduled(fixedRate = 1000)
     public List<Project> home() throws GitLabApiException {
         System.out.println("MainController: /home endpoint called. Requesting projects from GitLabService.");
         return gitLabService.getAllProjects();
