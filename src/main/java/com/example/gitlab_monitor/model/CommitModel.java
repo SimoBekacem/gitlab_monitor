@@ -1,26 +1,34 @@
 package com.example.gitlab_monitor.model;
 
+import java.text.SimpleDateFormat;
 import java.util.Date;
-import java.text.SimpleDateFormat; 
 
-import org.springframework.data.annotation.Id;
-import org.springframework.data.mongodb.core.mapping.Document;
-import org.springframework.data.mongodb.core.mapping.Field;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
 
-@Document(collection = "commits")
+@Table(name = "commits")
+@Entity
 public class CommitModel {
     @Id
-    @Field("commitId")
+    @Column(name = "commit_id", nullable = false, unique = true)
     private String commitId;
+    @Column(name = "project_name", nullable = false)
     private String projectName;
+    @Column(name = "committer_name", nullable = false)
     private String committerName;
+    @Column(name = "commit_date", nullable = false)
     private String commitDate;
+    @Column(name = "message")
     private String message;
+    @Column(name = "branch_name")
     private String branchName;
 
     // Standard date format for consistent output
     private static final SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss Z");
 
+    public CommitModel() {}
     public CommitModel(String projectName, String committerName, Date commitDate, String commitId, String message, String branchName) {
         this.projectName = projectName;
         this.committerName = committerName;
