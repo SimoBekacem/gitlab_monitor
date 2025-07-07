@@ -1,21 +1,21 @@
 package com.example.gitlab_monitor.service;
 
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.List;
+import java.util.stream.Collectors;
+
 import org.gitlab4j.api.GitLabApi;
 import org.gitlab4j.api.GitLabApiException;
-import org.gitlab4j.api.models.Project;
 import org.gitlab4j.api.models.Branch;
 import org.gitlab4j.api.models.Commit;
+import org.gitlab4j.api.models.Project;
 import org.springframework.stereotype.Service;
 
 import com.example.gitlab_monitor.model.CommitModel;
 import com.example.gitlab_monitor.repository.CommitsRepository;
-
-import java.util.ArrayList;
-import java.util.List;
-import java.util.stream.Collectors;
-import java.util.Date;
-import java.time.Instant;
-import java.time.format.DateTimeParseException;
 
 /**
  * Service that interacts with the GitLab API to fetch project and commit information.
@@ -90,17 +90,32 @@ public class GitLabService {
         System.out.println("--- Finished storeAllCommits processing ---");
     }
     
+    // private void fetchCommitsForProject(Project project, List<CommitModel> allCommitsInfo) throws GitLabApiException {
+    //     System.out.println("--- Starting fetchCommitsForProject processing ---");
+    //     try {
+    //         Date since = Date.from(Instant.parse("2017-01-01T00:00:00Z"));
+    //         Date until = new Date();
+    //         fetchCommitsForProjectBranches(project, since, until, allCommitsInfo);
+    //     } catch (DateTimeParseException e) {
+    //         throw new RuntimeException("Failed to parse start date for commits", e);
+    //     }
+    //     System.out.println("--- Finished fetchCommitsForProject processing ---");
+    // }
+
     private void fetchCommitsForProject(Project project, List<CommitModel> allCommitsInfo) throws GitLabApiException {
-        System.out.println("--- Starting fetchCommitsForProject processing ---");
-        try {
-            Date since = Date.from(Instant.parse("2017-01-01T00:00:00Z"));
-            Date until = new Date();
-            fetchCommitsForProjectBranches(project, since, until, allCommitsInfo);
-        } catch (DateTimeParseException e) {
-            throw new RuntimeException("Failed to parse start date for commits", e);
-        }
-        System.out.println("--- Finished fetchCommitsForProject processing ---");
+    System.out.println("--- Starting fetchCommitsForProject processing ---");
+    try {
+        // Calculate the 'since' date as 24 hours ago from the current moment
+        Date until = new Date(); // Current time
+        Instant twentyFourHoursAgo = Instant.now().minus(24, ChronoUnit.HOURS);
+        Date since = Date.from(twentyFourHoursAgo);
+
+        fetchCommitsForProjectBranches(project, since, until, allCommitsInfo);
+    } catch (Exception e) { // Catching a more general Exception as DateTimeParseException is no longer relevant for the 'since' calculation
+        throw new RuntimeException("Failed to fetch commits for project due to an unexpected error", e);
     }
+    System.out.println("--- Finished fetchCommitsForProject processing ---");
+}
 
     private void fetchCommitsForProjectBranches(Project project, Date since, Date until, List<CommitModel> allCommitsInfo) throws GitLabApiException {
         System.out.println("--- Starting fetchCommitsForProjectBranches processing ---");

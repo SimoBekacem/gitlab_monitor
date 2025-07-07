@@ -25,6 +25,7 @@ def gitlab_webhook():
         print("GitLab Secret Token verified.")
 
     print(f"Received GitLab Webhook Request. Event Name: {request.json.get('event_name')}")
+    print(f"Request JSON: {request.json}")
     # Get commits just in push events
     if request.json.get('event_name') == 'push':
         # Call the Spring Boot endpoint
