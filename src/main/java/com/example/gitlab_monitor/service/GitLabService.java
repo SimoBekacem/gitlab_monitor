@@ -35,7 +35,7 @@ public class GitLabService {
         this.commitRepository = commitRepository;
     }
 
-    
+    // --- get all projects then get all commits from each project ---
     public List<Project> getAllProjects() throws GitLabApiException {
         System.out.println("--- Starting getAllProjects processing ---");
         List<Project> projects = gitLabApi.getProjectApi().getProjects();
@@ -90,6 +90,7 @@ public class GitLabService {
         System.out.println("--- Finished storeAllCommits processing ---");
     }
     
+    //! This method get the commits from 2017 to now
     // private void fetchCommitsForProject(Project project, List<CommitModel> allCommitsInfo) throws GitLabApiException {
     //     System.out.println("--- Starting fetchCommitsForProject processing ---");
     //     try {
@@ -102,20 +103,21 @@ public class GitLabService {
     //     System.out.println("--- Finished fetchCommitsForProject processing ---");
     // }
 
+    //! This method get the commits from 24 hours ago
     private void fetchCommitsForProject(Project project, List<CommitModel> allCommitsInfo) throws GitLabApiException {
-    System.out.println("--- Starting fetchCommitsForProject processing ---");
-    try {
-        // Calculate the 'since' date as 24 hours ago from the current moment
-        Date until = new Date(); // Current time
-        Instant twentyFourHoursAgo = Instant.now().minus(24, ChronoUnit.HOURS);
-        Date since = Date.from(twentyFourHoursAgo);
+        System.out.println("--- Starting fetchCommitsForProject processing ---");
+        try {
+            // Calculate the 'since' date as 24 hours ago from the current moment
+            Date until = new Date(); // Current time
+            Instant twentyFourHoursAgo = Instant.now().minus(24, ChronoUnit.HOURS);
+            Date since = Date.from(twentyFourHoursAgo);
 
-        fetchCommitsForProjectBranches(project, since, until, allCommitsInfo);
-    } catch (Exception e) { // Catching a more general Exception as DateTimeParseException is no longer relevant for the 'since' calculation
-        throw new RuntimeException("Failed to fetch commits for project due to an unexpected error", e);
+            fetchCommitsForProjectBranches(project, since, until, allCommitsInfo);
+        } catch (Exception e) { // Catching a more general Exception as DateTimeParseException is no longer relevant for the 'since' calculation
+            throw new RuntimeException("Failed to fetch commits for project due to an unexpected error", e);
+        }
+        System.out.println("--- Finished fetchCommitsForProject processing ---");
     }
-    System.out.println("--- Finished fetchCommitsForProject processing ---");
-}
 
     private void fetchCommitsForProjectBranches(Project project, Date since, Date until, List<CommitModel> allCommitsInfo) throws GitLabApiException {
         System.out.println("--- Starting fetchCommitsForProjectBranches processing ---");
@@ -154,4 +156,9 @@ public class GitLabService {
         ));
     }
     
+
+    // ---- save one commit each time on case of push event ---- 
+    public void storeCommit(CommitModel commit) {
+        commitRepository.save(commit);
+    }
 }

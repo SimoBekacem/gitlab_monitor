@@ -12,6 +12,9 @@ import org.gitlab4j.api.GitLabApiException;
 import org.gitlab4j.api.models.Project;
 
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+
 
 
 
@@ -36,4 +39,11 @@ public class MainController {
         gitLabService.storeAllCommits(gitLabService.getAllCommitsForAllProjects());
         return gitLabService.getAllCommitsForAllProjects();
     }
+    @PostMapping("/commit")
+    public String getMethodName(@RequestBody CommitModel commit) {
+        System.out.println("MainController: /commit endpoint called. Requesting commits from GitLabService with project ID: " + commit.getBranchName());
+        gitLabService.storeCommit(commit);
+        return new String();
+    }
+    
 }
