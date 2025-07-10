@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 from flask import Flask, request, jsonify
 
 app = Flask(__name__)
-SPRING_BOOT_ENDPOINT = "http://localhost:8080/commit"
+SPRING_BOOT_ENDPOINT = "http://localhost:8080/"
 WEBHOOK_SECRET      = os.getenv("GITLAB_WEBHOOK_SECRET")
 
 def iso_to_commit_date(ts: str) -> str:
@@ -34,7 +34,7 @@ def gitlab_webhook():
 
         try:
             resp = requests.post(
-                SPRING_BOOT_ENDPOINT,
+                SPRING_BOOT_ENDPOINT + "commit",
                 json=commit_json,          # ← send as JSON, not form‑data
                 headers={"Content-Type": "application/json"}
             )
@@ -45,9 +45,34 @@ def gitlab_webhook():
 
     return jsonify({"message": "Commits forwarded"}), 200
 
+
+@app.route("/sync-db", methods=["GET"])
+def sync_commits():
+    try:
+        resp = requests.get(
+            SPRING_BOOT_ENDPOINT + "sync-commits-db",
+            headers={"Content-Type": "application/json"}
+        )
+        resp.raise_for_status()
+        print(f"Synced commits from Spring Boot OK ({resp.status_code})")
+        return resp.text
+    except requests.RequestException as e:
+        print(f"Failed to sync commits: {e}")
+        return jsonify({"message": f"Failed to sync commits: {e}"}), 500
+
 @app.route("/")
 def index():
     return "GitLab webhook listener running."
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000)
+    try:
+        resp = requests.get(
+            SPRING_BOOT_ENDPOINT + "sync-commits",
+            headers={"Content-Type": "application/json"}
+        )
+        resp.raise_for_status()
+        print(f"Synced last commits from Spring Boot OK ({resp.status_code})")
+    except requests.RequestException as e:
+        print(f"Failed to sync last commits: {e}")
+    app.run(host="0.0.0.0", port=5000)  
+    

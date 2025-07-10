@@ -8,8 +8,8 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 
-@Table(name = "commits")
 @Entity
+@Table(name = "commits")
 public class CommitModel {
     @Id
     @Column(name = "commit_id", nullable = false, unique = true)

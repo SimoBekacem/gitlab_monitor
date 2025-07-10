@@ -1,11 +1,11 @@
 package com.example.gitlab_monitor.service;
 
 import java.time.Instant;
-import java.time.temporal.ChronoUnit;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
-import java.util.stream.Collectors;
 
 import org.gitlab4j.api.GitLabApi;
 import org.gitlab4j.api.GitLabApiException;
@@ -35,92 +35,59 @@ public class GitLabService {
         this.commitRepository = commitRepository;
     }
 
-    // --- get all projects then get all commits from each project ---
-    public List<Project> getAllProjects() throws GitLabApiException {
-        System.out.println("--- Starting getAllProjects processing ---");
-        List<Project> projects = gitLabApi.getProjectApi().getProjects();
-        System.out.println("GitLabService: Found " + projects.size() + " projects.");
-        System.out.println("--- Finished getAllProjects processing ---");
-        return projects;
-    }
-
-    
-    public List<CommitModel> getAllCommitsForAllProjects() throws GitLabApiException {
-        System.out.println("--- Starting getAllCommitsForAllProjects processing ---");
-        List<CommitModel> allCommitsInfo = new ArrayList<>();
+    // store all commits from all projects branches on the db and doesn't return anything
+    public void getAllCommitsForAllProjects() throws GitLabApiException {
         List<Project> projects = getAllProjects();
         System.out.println("GitLabService: Found " + projects.size() + " projects.");
         for (Project project : projects) {
-            fetchCommitsForProject(project, allCommitsInfo);
+            fetchCommitsForProject(project);
         }
-        System.out.println("GitLabService: Total commits collected: " + allCommitsInfo.size());
-        System.out.println("--- Finished getAllCommitsForAllProjects processing ---");
-        return allCommitsInfo;
     }
-    
-    public void storeAllCommits(List<CommitModel> allCommitsInfo) {
-        System.out.println("--- Starting storeAllCommits processing ---");
-        System.out.println("Number of commits received from GitLab API for processing: " + allCommitsInfo.size());
-    
-        if (!allCommitsInfo.isEmpty()) {
-            System.out.println("Sample fetched commit IDs (from GitLab API): " +
-                    allCommitsInfo.stream().limit(5).map(CommitModel::getCommitId).collect(Collectors.joining(", ")));
-        } else {
-            System.out.println("No commits fetched from GitLab API to process.");
-        }
-    
-        List<CommitModel> newCommits = allCommitsInfo.stream()
-                .filter(commit -> {
-                    String commitId = commit.getCommitId();
-                    boolean exists = commitRepository.existsById(commitId);
-                    return !exists;
-                })
-                .collect(Collectors.toList());
-    
-        System.out.println("Number of *new* commits identified for storage: " + newCommits.size());
-    
 
-        if (!newCommits.isEmpty()) {
-            commitRepository.saveAll(newCommits);
-            System.out.println("Successfully stored " + newCommits.size() + " new commits to the database.");
-        } else {
-            System.out.println("No new commits to store (all fetched commits already exist in DB or fetched list was empty).");
-        }
-    
-        System.out.println("--- Finished storeAllCommits processing ---");
+    // get all projects from gitlab
+    public List<Project> getAllProjects() throws GitLabApiException {
+        List<Project> projects = gitLabApi.getProjectApi().getProjects();
+        System.out.println("GitLabService: Found " + projects.size() + " projects.");
+        return projects;
     }
-    
-    //! This method get the commits from 2017 to now
-    // private void fetchCommitsForProject(Project project, List<CommitModel> allCommitsInfo) throws GitLabApiException {
-    //     System.out.println("--- Starting fetchCommitsForProject processing ---");
-    //     try {
-    //         Date since = Date.from(Instant.parse("2017-01-01T00:00:00Z"));
-    //         Date until = new Date();
-    //         fetchCommitsForProjectBranches(project, since, until, allCommitsInfo);
-    //     } catch (DateTimeParseException e) {
-    //         throw new RuntimeException("Failed to parse start date for commits", e);
-    //     }
-    //     System.out.println("--- Finished fetchCommitsForProject processing ---");
-    // }
 
-    //! This method get the commits from 24 hours ago
-    private void fetchCommitsForProject(Project project, List<CommitModel> allCommitsInfo) throws GitLabApiException {
-        System.out.println("--- Starting fetchCommitsForProject processing ---");
+// this is to split the date range in years
+    public static List<Date> getDateRange(Date since, Date until) {
+        List<Date> dates = new ArrayList<>();
+        
+        LocalDate start = since.toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
+        LocalDate end = until.toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
+
+        while (!start.isAfter(end)) {
+            Instant instant = start.atStartOfDay(ZoneId.systemDefault()).toInstant();
+            dates.add(Date.from(instant));
+            start = start.plusYears(1);
+        }
+        dates.add(until);
+        return dates;
+    }
+
+    
+    private void fetchCommitsForProject(Project project) throws GitLabApiException {
+        System.out.println("[fetchCommitsForProject] Fetching commits for project: " + project.getName());
         try {
-            // Calculate the 'since' date as 24 hours ago from the current moment
             Date until = new Date(); // Current time
-            Instant twentyFourHoursAgo = Instant.now().minus(24, ChronoUnit.HOURS);
-            Date since = Date.from(twentyFourHoursAgo);
-
-            fetchCommitsForProjectBranches(project, since, until, allCommitsInfo);
-        } catch (Exception e) { // Catching a more general Exception as DateTimeParseException is no longer relevant for the 'since' calculation
+            Date since = Date.from(Instant.parse("2025-01-01T00:00:00Z"));
+            List<Date> dates = getDateRange(since, until);
+            System.out.println(dates.size());
+            for (int index = 0; index < dates.size() - 1; index++) {
+                System.out.println("index: " + index);
+                System.out.println("[fetchCommitsForProject] Fetching commits for project: " + project.getName() + " from " + dates.get(index) + " to " + dates.get(index + 1));
+                fetchCommitsForProjectBranches(project, dates.get(index), dates.get(index + 1));
+            }
+            
+        } catch (Exception e) {
             throw new RuntimeException("Failed to fetch commits for project due to an unexpected error", e);
         }
-        System.out.println("--- Finished fetchCommitsForProject processing ---");
     }
-
-    private void fetchCommitsForProjectBranches(Project project, Date since, Date until, List<CommitModel> allCommitsInfo) throws GitLabApiException {
-        System.out.println("--- Starting fetchCommitsForProjectBranches processing ---");
+    
+    // get the commits from projects branches
+    private void fetchCommitsForProjectBranches(Project project, Date since, Date until) throws GitLabApiException {
         List<Branch> branches = gitLabApi.getRepositoryApi().getBranches(project.getId());
 
         if (branches == null || branches.isEmpty()) {
@@ -133,32 +100,48 @@ public class GitLabService {
 
             if (commits != null && !commits.isEmpty()) {
                 for (Commit commit : commits) {
-                    addCommitInfo(commit, project, allCommitsInfo, branchName);
+                    addCommitInfo(commit, project, branchName);
                 }
             } else {
-                System.out.println("No commits found for project: " + project.getName() + " in branch " + branchName + " within the specified date range.");
+                System.out.println("[fetchCommitsForProjectBranches] No commits found for project: " + project.getName() + " in branch " + branchName + " within the specified date range.");
             }
         }
-        System.out.println("--- Finished fetchCommitsForProjectBranches processing ---");
     }
 
     
-    private void addCommitInfo(Commit commit, Project project, List<CommitModel> allCommitsInfo, String branchName) {
+    private void addCommitInfo(Commit commit, Project project, String branchName) {
         String committerName = commit.getCommitterName() != null ? commit.getCommitterName() : commit.getAuthorName();
-
-        allCommitsInfo.add(new CommitModel(
+        CommitModel newCommit = new CommitModel(
             project.getName(),
             committerName,
             commit.getCommittedDate(),
             commit.getId(),
             commit.getMessage(),
             branchName
-        ));
+        );
+        commitRepository.save(newCommit);
     }
     
-
-    // ---- save one commit each time on case of push event ---- 
     public void storeCommit(CommitModel commit) {
         commitRepository.save(commit);
+    }
+
+    public void addCommitFromLastCommit() throws GitLabApiException {
+        try {
+            Date until = new Date(); // Current time
+            String commitDateString = commitRepository.findLastCommit().getCommitDate();
+            java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss Z");
+            Date since = sdf.parse(commitDateString);
+            System.out.println("GitLabService: Fetching commits for project from " + since + " to " + until);
+            List<Project> projects = getAllProjects();
+            System.out.println("GitLabService: Found " + projects.size() + " projects.");
+            for (Project project : projects) {
+                System.out.println("[addCommitFromLastCommit] Fetching commits for project: " + project.getName());
+                fetchCommitsForProjectBranches(project, since, until);
+            }
+            
+        } catch (Exception e) { // Catching a more general Exception as DateTimeParseException is no longer relevant for the 'since' calculation
+            throw new RuntimeException("Failed to fetch commits for project due to an unexpected error", e);
+        }
     }
 }

@@ -14,6 +14,8 @@ import org.gitlab4j.api.models.Project;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestParam;
+
 
 
 
@@ -27,17 +29,21 @@ public class MainController {
         this.gitLabService = gitLabService;
     }
 
-    @GetMapping("/home")
-    public List<Project> home() throws GitLabApiException {
-        System.out.println("MainController: /home endpoint called. Requesting projects from GitLabService.");
-        return gitLabService.getAllProjects();
+    @GetMapping("/sync-commits")
+    public String syncCommits() {
+        try {
+            gitLabService.addCommitFromLastCommit();
+        } catch (GitLabApiException e) {
+            System.out.println("Failed to fetch commits for project due to an unexpected error");
+            e.printStackTrace();
+        }
+        return new String();
     }
-
-    @GetMapping("/commits")
-    public List<CommitModel> getProjectCommits() throws GitLabApiException {
+    
+    @GetMapping("/sync-commits-db")
+    public void getProjectCommits() throws GitLabApiException {
         System.out.println("MainController: /commits endpoint called. Requesting commits from GitLabService.");
-        gitLabService.storeAllCommits(gitLabService.getAllCommitsForAllProjects());
-        return gitLabService.getAllCommitsForAllProjects();
+        gitLabService.getAllCommitsForAllProjects();
     }
     @PostMapping("/commit")
     public String getMethodName(@RequestBody CommitModel commit) {

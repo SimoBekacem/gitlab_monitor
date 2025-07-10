@@ -8,7 +8,6 @@ app = Flask(__name__)
 # --- Configuration ---
 # The URL of Spring Boot application's endpoint
 SPRING_BOOT_ENDPOINT = "http://localhost:8080/commits"
-# SPRING_BOOT_ENDPOINT = "http://localhost:8080/usersCommits"
 
 WEBHOOK_SECRET = os.environ.get("GITLAB_WEBHOOK_SECRET", None)
 
@@ -45,19 +44,3 @@ def gitlab_webhook():
     else:
         print(f"Received non-push event. Event Name: {request.json.get('event_name')}")
         return jsonify({"message": f"Received non-push event. Event Name: {request.json.get('event_name')}"}), 200
-
-    
-
-@app.route('/', methods=['GET'])
-def index():
-    return "Python GitLab Webhook Listener is running. Send POST requests to /gitlab-webhook."
-
-if __name__ == '__main__':
-    print(f"Python script listening for GitLab webhooks on port 5000.")
-    print(f"Spring Boot endpoint to be called: {SPRING_BOOT_ENDPOINT}")
-    if WEBHOOK_SECRET:
-        print(f"Webhook secret is configured. Ensure X-Gitlab-Token header matches.")
-    else:
-        print("No webhook secret configured (WEBHOOK_SECRET environment variable not set).")
-
-    app.run(host='0.0.0.0', port=5000)

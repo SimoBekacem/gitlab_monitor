@@ -1,11 +1,12 @@
 package com.example.gitlab_monitor.repository;
 
-import com.example.gitlab_monitor.model.CommitModel;
+import java.util.List;
+
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
-import java.util.List;
+import com.example.gitlab_monitor.model.CommitModel;
 
 @Repository
 public interface CommitsRepository extends JpaRepository<CommitModel, String> {
@@ -16,4 +17,8 @@ public interface CommitsRepository extends JpaRepository<CommitModel, String> {
 
     // Spring Data JPA method to check existence by commitId, no need for @Query
     boolean existsByCommitId(String commitId);
+
+    // find the last added commit
+    @Query("SELECT c FROM CommitModel c ORDER BY c.commitDate DESC LIMIT 1")
+    CommitModel findLastCommit();
 }
