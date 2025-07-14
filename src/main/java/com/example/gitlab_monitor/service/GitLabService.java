@@ -118,10 +118,10 @@ public class GitLabService {
     public void addCommitFromLastCommit() throws GitLabApiException {
         try {
             Date until = new Date();
-            String commitDateString = commitRepository.findLastCommit().getCommitDate();
-            if (commitDateString == null) {
+            if(commitRepository.findLastCommit() == null) {
                 return;
             }
+            String commitDateString = commitRepository.findLastCommit().getCommitDate();
             java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss Z");
             Date since = sdf.parse(commitDateString);
             logger.info("📥 GitLabService [addCommitFromLastCommit]: Fetching commits for project from {} to {}", since, until);
