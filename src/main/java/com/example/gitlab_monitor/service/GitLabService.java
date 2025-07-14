@@ -12,6 +12,8 @@ import org.gitlab4j.api.GitLabApiException;
 import org.gitlab4j.api.models.Branch;
 import org.gitlab4j.api.models.Commit;
 import org.gitlab4j.api.models.Project;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
 
 import com.example.gitlab_monitor.model.CommitModel;
@@ -126,6 +128,7 @@ public class GitLabService {
         commitRepository.save(commit);
     }
 
+    @EventListener(ApplicationReadyEvent.class)
     public void addCommitFromLastCommit() throws GitLabApiException {
         try {
             Date until = new Date(); // Current time
@@ -140,7 +143,7 @@ public class GitLabService {
                 fetchCommitsForProjectBranches(project, since, until);
             }
             
-        } catch (Exception e) { // Catching a more general Exception as DateTimeParseException is no longer relevant for the 'since' calculation
+        } catch (Exception e) {
             throw new RuntimeException("Failed to fetch commits for project due to an unexpected error", e);
         }
     }
