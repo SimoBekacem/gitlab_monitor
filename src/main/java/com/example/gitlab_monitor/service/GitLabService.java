@@ -119,6 +119,7 @@ public class GitLabService {
         try {
             Date until = new Date();
             if(commitRepository.findLastCommit() == null) {
+                logger.warn("⚠️ GitLabService [addCommitFromLastCommit]: No commits found in the database.");
                 return;
             }
             String commitDateString = commitRepository.findLastCommit().getCommitDate();
