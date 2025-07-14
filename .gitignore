@@ -33,6 +33,7 @@ build/
 .vscode/
 
 
-puller/venv
+
 .env
-./docker/*
+
+
