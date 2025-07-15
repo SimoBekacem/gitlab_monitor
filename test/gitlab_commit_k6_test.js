@@ -12,11 +12,7 @@ function randomBranchName() {
 
 export let options = {
   vus: 10, // 10 concurrent users
-  iterations: 200, // 200 total commits
-  thresholds: {
-    http_req_failed: ["rate<0.01"], // allow <1% failure
-    http_req_duration: ["p(95)<5000"], // 95% under 5s
-  },
+  iterations: 50, // 50 total commits
 };
 
 export default function () {

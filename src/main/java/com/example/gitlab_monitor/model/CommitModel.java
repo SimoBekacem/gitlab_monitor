@@ -25,6 +25,22 @@ public class CommitModel {
     @Column(name = "branch_name")
     private String branchName;
 
+    public void setCommitId(String commitId) {
+        this.commitId = commitId;
+    }
+    public void setProjectName(String projectName) {
+        this.projectName = projectName;
+    }
+    public void setCommitterName(String committerName) {
+        this.committerName = committerName;
+    }
+    public void setCommitDate(String commitDate) {
+        this.commitDate = commitDate;
+    }
+    public void setMessage(String message) {
+        this.message = message;
+    }
+
     // Standard date format for consistent output
     private static final SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss Z");
 
